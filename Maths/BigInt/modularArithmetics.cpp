@@ -17,7 +17,6 @@ BigInt exp(BigInt a, BigInt b, const BigInt& mod){
     auto start = std::chrono::high_resolution_clock::now();
     a %= mod;
     
-    std::cout << "Calculating " << a << " ^ " << b << " in mod " << mod << std::endl;
     BigInt result =1;
     while(b>0){
         if(b%2==1){
@@ -28,7 +27,8 @@ BigInt exp(BigInt a, BigInt b, const BigInt& mod){
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Modular exponentiation took " << elapsed.count() << std::endl;
+    std:: cout << "Result: " << result << std::endl;    
+    std::cout << "BigInt exp took " << elapsed.count() << " seconds." << std::endl;
     return result;
 }
 
