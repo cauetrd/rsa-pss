@@ -2,7 +2,7 @@
 #define MOD_ARITHMETIC_HPP
 
 #include <gmpxx.h>
-#include "EuclideanExtended.hpp"  // for modular inverse (needs gcd)
+#include "GCD.hpp"  // for modular inverse (needs gcd)
 
 namespace mod{
 

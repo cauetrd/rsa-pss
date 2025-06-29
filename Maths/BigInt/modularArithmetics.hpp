@@ -2,7 +2,7 @@
 #define MOD_ARITHMETIC_HPP
 
 #include "BigInt.hpp"          // your big-integer class
-#include "EuclideanExtended.hpp"  // for modular inverse (needs gcd)
+#include "GCD.hpp"  // for modular inverse (needs gcd)
 
 namespace mod{
 
