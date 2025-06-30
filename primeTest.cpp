@@ -72,12 +72,6 @@ pair<mpz_class, mpz_class> read_pem_file(const string& filename) {
     
     // Read n_size (first 4 bytes)
     uint32_t n_size = *reinterpret_cast<uint32_t*>(binary_data.data());
-    cout << "Debug: n_size = " << n_size << endl;
-    cout << "Debug: First 8 bytes (hex): ";
-    for(int i = 0; i < min(8, (int)binary_data.size()); i++) {
-        printf("%02X ", binary_data[i]);
-    }
-    cout << endl;
     
     // Read n (next n_size bytes)
     mpz_class n;
@@ -85,20 +79,11 @@ pair<mpz_class, mpz_class> read_pem_file(const string& filename) {
     
     // Read key_size (next 4 bytes)
     uint32_t key_size = *reinterpret_cast<uint32_t*>(binary_data.data() + 4 + n_size);
-    cout << "Debug: key_size = " << key_size << endl;
-    cout << "Debug: Key bytes (hex): ";
-    for(int i = 0; i < min(8, (int)key_size); i++) {
-        printf("%02X ", binary_data[8 + n_size + i]);
-    }
-    cout << endl;
     
     // Read key (next key_size bytes)
     mpz_class key;
     mpz_import(key.get_mpz_t(), key_size, 1, 1, 0, 0, binary_data.data() + 8 + n_size);
-    
-    cout << "Debug: Total binary data size = " << binary_data.size() << endl;
-    cout << "Debug: Expected size = " << (8 + n_size + key_size) << endl;
-    
+        
     return make_pair(n, key);
 }
 
@@ -123,5 +108,22 @@ int main(){
         cout << "\nError: Keys have different modulus!" << endl;
     }
 
+    // Test if encryption works
+
+    cout << endl << "Testing encryption and decryption..." << endl;
+
+    mpz_class message("1234567890123456789012345678901234567890");
+    cout << "Message: " << message << endl;
+    // Encrypt using public key: c = m^e mod n
+    mpz_class c = mod::exp(message, e, n_pub);
+    cout << "Ciphertext: " << c << endl;
+    // Decrypt using private key: m = c^d mod n
+    mpz_class decrypted_message = mod::exp(c, d, n_priv);
+    cout << "Decrypted message: " << decrypted_message << endl;
+    if (message == decrypted_message) {
+        cout << "Decryption successful!" << endl;
+    } else {
+        cout << "Decryption failed!" << endl;
+    }
     return 0;
 }

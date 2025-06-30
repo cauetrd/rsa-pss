@@ -10,44 +10,71 @@
 
 mpz_class randPrimeGen(std::ifstream& urandom){
     while (true){
-    const size_t num_bytes = 256; // 2048 bits
+    const size_t num_bytes = 128; // 2048 bits
     unsigned char buffer[num_bytes];
-
+    
     urandom.read(reinterpret_cast<char*>(buffer), num_bytes);
     if (!urandom) {
         std::cerr << "Failed to read enough bytes\n";
         return 0;
     }
 
+    buffer[num_bytes - 1] |= 1; // Ensure the last byte is odd to avoid even numbers
+
     // Initialize mpz_class from binary buffer
     mpz_class rand_num;
     mpz_import(rand_num.get_mpz_t(), num_bytes, 1, 1, 0, 0, buffer);
-    
+
     if(MillerRabin(rand_num)){
         return rand_num;
         }
     }
 }
 
-std::string base64_encode(const std::vector<unsigned char>& in) {
-    static const char *base64_chars =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz"
-        "0123456789+/";
+static const std::string base64_chars =
+             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+             "abcdefghijklmnopqrstuvwxyz"
+             "0123456789+/";
 
-    std::string out;
-    int val = 0, valb = -6;
-    for (unsigned char c : in) {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0) {
-            out.push_back(base64_chars[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
+std::string base64_encode(unsigned char const* buf, unsigned int bufLen) {
+  std::string ret;
+  int i = 0;
+  int j = 0;
+  unsigned char char_array_3[3];
+  unsigned char char_array_4[4];
+
+  while (bufLen--) {
+    char_array_3[i++] = *(buf++);
+    if (i == 3) {
+      char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+      char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+      char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+      char_array_4[3] = char_array_3[2] & 0x3f;
+
+      for(i = 0; (i <4) ; i++)
+        ret += base64_chars[char_array_4[i]];
+      i = 0;
     }
-    if (valb > -6) out.push_back(base64_chars[((val << 8) >> valb) & 0x3F]);
-    while (out.size() % 4) out.push_back('=');
-    return out;
+  }
+
+  if (i)
+  {
+    for(j = i; j < 3; j++)
+      char_array_3[j] = '\0';
+
+    char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
+    char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
+    char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
+    char_array_4[3] = char_array_3[2] & 0x3f;
+
+    for (j = 0; (j < i + 1); j++)
+      ret += base64_chars[char_array_4[j]];
+
+    while((i++ < 3))
+      ret += '=';
+  }
+
+  return ret;
 }
 
 std::string to_pem(const std::string& base64_data, const std::string& label) {
@@ -89,9 +116,11 @@ void write_pem_file(const mpz_class& n, const mpz_class& key, const std::string&
     combined_bytes.insert(combined_bytes.end(), reinterpret_cast<unsigned char*>(&key_size), reinterpret_cast<unsigned char*>(&key_size) + sizeof(key_size));
     combined_bytes.insert(combined_bytes.end(), key_bytes.begin(), key_bytes.end());
 
-    std::string base64_data = base64_encode(combined_bytes);
+    std::string base64_data = base64_encode(combined_bytes.data(), combined_bytes.size());
     std::string pem_data = to_pem(base64_data, "RSA " + label + " KEY");
 
+
+    // Write the PEM data to a file
     std::ofstream out(filename);
     if (!out) {
         std::cerr << "Failed to open file for writing: " << filename << std::endl;
@@ -138,13 +167,9 @@ int main() {
     elapsed = end - start;
     std::cout << "Time taken to calculate phi: " << elapsed.count() << " seconds." << std::endl;
 
-    std::cout << "n: " << n << std::endl;
-    std::cout << "phi: " << phi << std::endl;
-
     mpz_class e(65537); // Common choice for e
-    std::cout << "e: " << e << std::endl;
-    
-    // Ensure e is coprime with phi (obviously is, e is a prime number)
+
+    // Ensure e is coprime with phi (obviously is, as e is a prime number)
     // Adding this step for completeness
     if(gcd(e,phi) != 1) {
         std::cerr << "e is not coprime with phi, please choose a different e." << std::endl;
@@ -156,9 +181,6 @@ int main() {
 
     // Calculate d, the modular inverse of e mod phi
     mpz_class d = mod::inv(e, phi);    
-
-    std::cout << "d: " << d << std::endl;
-
 
     //quick test:
     mpz_class m("12345678901234567890");
@@ -177,7 +199,7 @@ int main() {
         std::cout << "Decryption failed!" << std::endl;
     }
 
-    write_pem_file(e, n, "public_key.pem", "PUBLIC");
+    write_pem_file(n, e, "public_key.pem", "PUBLIC");
     write_pem_file(n, d, "private_key.pem", "PRIVATE");
 
     return 0;
