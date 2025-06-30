@@ -4,7 +4,7 @@
 #include "BigInt.hpp"          // your big-integer class
 #include "GCD.hpp"  // for modular inverse (needs gcd)
 
-namespace mod{
+namespace BigIntmod{
 
     BigInt add(const BigInt& a, const BigInt& b, const BigInt& mod);
 

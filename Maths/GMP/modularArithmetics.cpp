@@ -33,7 +33,8 @@ mpz_class inv(const mpz_class& a, const mpz_class& mod){
 
     if(g != 1) return -1;   //a and mod are not coprime, there is no inverse
 
-    return x%mod;
+    return (x % mod + mod) % mod; // ensures the result is non-negative
+
 }
 
 }

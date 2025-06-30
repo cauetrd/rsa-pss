@@ -1,7 +1,7 @@
 #include "modularArithmetics.hpp"
 #include <chrono>
 
-namespace mod{
+namespace BigIntmod{
 //returns a+b in mod
 BigInt add(const BigInt& a, const BigInt& b, const BigInt& mod){
     return (a+b)%mod;

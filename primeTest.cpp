@@ -5,51 +5,123 @@
 #include <cstring>
 #include <cstdlib>
 #include <string>
+#include <fstream>
+#include <vector>
 
 using namespace std;
 
-int main(){
+// Base64 decoding function
+vector<unsigned char> base64_decode(const string& input) {
+    static const char* base64_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789+/";
+
+    vector<unsigned char> result;
+    int val = 0, valb = -8;
     
-    mpz_class composite("48");
-    mpz_class prime("61");
-    mpz_class bigcomposite("7625597484987369372399393939993993939399939396963963963936936396396396393693696969363963963936936396393693693639639369363963936936396393693696396393393936939696393993363939363939393936933963936936396393693693639639693696936969333333333333333333333333333333333333333333333666666666666666666666666");
-    mpz_class bigprime("231957225140883430233819607664855970021351100653357792153573941832177466227296722269229186082885621367985303142692837687002118640402738494741756437240096629754735748947935831228487418449533702178340222921649269226568234009608842687250752107400558956380812969917202630036111091473572761758288806523524367002043778720148504536885321899984657605809494226618328115529074892158722416211873499417895362913226049319027779104003134509835519299836712460431116847542625811882593548890076601094457289160407816185368018061445352284289911468619989344347472632907261691465744329796405522188834117643766119768058763519939405524006071634725366716337425820092862348113219626258199087340297940859992824975354378265596620866314713007398019243008013051269574301583032482490768205884504748294485075419781687787193092050921545708296065669312353202567641489406505783752966959988448245574683142888250276411021914781093413164138272454541089121248687826693931682214498125845449265579535475760200127433698489640309915244951130166131510728337361682004814702248968435701254697420194565645317273301084610947578806646449099665895147003295287377774516777196542215182899152062366867681001392675813818961830115978405378114382388231764707451348732033534252018855873291");
+    for (char c : input) {
+        if (c == '=' || c == '\n' || c == '\r' || c == ' ') continue;
+        
+        const char* pos = strchr(base64_chars, c);
+        if (!pos) continue;
+        
+        val = (val << 6) + (pos - base64_chars);
+        valb += 6;
+        if (valb >= 0) {
+            result.push_back((val >> valb) & 0xFF);
+            valb -= 8;
+        }
+    }
+    return result;
+}
 
-    // Testa composite
-    cout << composite << " is ";
-    if (MillerRabin(composite)) {
-        cout << "prime";
-    } else {
-        cout << "composite";
+// Function to read and parse PEM file
+pair<mpz_class, mpz_class> read_pem_file(const string& filename) {
+    ifstream file(filename);
+    if (!file) {
+        cerr << "Failed to open file: " << filename << endl;
+        return make_pair(mpz_class(0), mpz_class(0));
+    }
+    
+    string line, base64_content;
+    bool reading_key = false;
+    
+    // Extract base64 content from PEM
+    while (getline(file, line)) {
+        if (line.find("-----BEGIN") != string::npos) {
+            reading_key = true;
+            continue;
+        }
+        if (line.find("-----END") != string::npos) {
+            break;
+        }
+        if (reading_key) {
+            base64_content += line;
+        }
+    }
+    
+    // Decode base64 to binary
+    vector<unsigned char> binary_data = base64_decode(base64_content);
+    
+    // Parse your custom format: [n_size][n_bytes][key_size][key_bytes]
+    if (binary_data.size() < 8) {
+        cerr << "Invalid key file format" << endl;
+        return make_pair(mpz_class(0), mpz_class(0));
+    }
+    
+    // Read n_size (first 4 bytes)
+    uint32_t n_size = *reinterpret_cast<uint32_t*>(binary_data.data());
+    cout << "Debug: n_size = " << n_size << endl;
+    cout << "Debug: First 8 bytes (hex): ";
+    for(int i = 0; i < min(8, (int)binary_data.size()); i++) {
+        printf("%02X ", binary_data[i]);
     }
     cout << endl;
-
-    // Testa prime
-    cout << prime << " is ";
-    if (MillerRabin(prime)) {
-        cout << "prime";
-    } else {
-        cout << "composite";
+    
+    // Read n (next n_size bytes)
+    mpz_class n;
+    mpz_import(n.get_mpz_t(), n_size, 1, 1, 0, 0, binary_data.data() + 4);
+    
+    // Read key_size (next 4 bytes)
+    uint32_t key_size = *reinterpret_cast<uint32_t*>(binary_data.data() + 4 + n_size);
+    cout << "Debug: key_size = " << key_size << endl;
+    cout << "Debug: Key bytes (hex): ";
+    for(int i = 0; i < min(8, (int)key_size); i++) {
+        printf("%02X ", binary_data[8 + n_size + i]);
     }
     cout << endl;
+    
+    // Read key (next key_size bytes)
+    mpz_class key;
+    mpz_import(key.get_mpz_t(), key_size, 1, 1, 0, 0, binary_data.data() + 8 + n_size);
+    
+    cout << "Debug: Total binary data size = " << binary_data.size() << endl;
+    cout << "Debug: Expected size = " << (8 + n_size + key_size) << endl;
+    
+    return make_pair(n, key);
+}
 
-    // Testa bigcomposite
-    cout << bigcomposite << " is ";
-    if (MillerRabin(bigcomposite)) {
-        cout << "prime";
-    } else {
-        cout << "composite";
-    }
-    cout << endl;
 
-    // Testa bigprime
-    cout << bigprime << " is ";
-    if (MillerRabin(bigprime)) {
-        cout << "prime";
+int main(){
+    // Read public key (n, e)
+    auto [n_pub, e] = read_pem_file("public_key.pem");
+    cout << "Public key loaded:" << endl;
+    cout << "n: " << n_pub << endl;
+    cout << "e: " << e << endl;
+    
+    // Read private key (n, d)
+    auto [n_priv, d] = read_pem_file("private_key.pem");
+    cout << "\nPrivate key loaded:" << endl;
+    cout << "n: " << n_priv << endl;
+    cout << "d: " << d << endl;
+    
+    // Verify n is the same in both keys
+    if (n_pub == n_priv) {
+        cout << "\nKeys are consistent!" << endl;
     } else {
-        cout << "composite";
+        cout << "\nError: Keys have different modulus!" << endl;
     }
-    cout << endl;
 
     return 0;
 }
