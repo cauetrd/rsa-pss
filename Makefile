@@ -1,5 +1,7 @@
 CXX = g++
+CC = gcc
 CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -I. -IMaths -march=native
+CFLAGS = -std=c99 -Wall -Wextra -O3 -I. -IMaths -march=native
 DEBUG_FLAGS = -g -DDEBUG -O0
 RELEASE_FLAGS = -DNDEBUG -O3 -march=native
 LDFLAGS = -lgmp -lgmpxx
@@ -8,33 +10,42 @@ LDFLAGS = -lgmp -lgmpxx
 BUILD_MODE ?= release
 ifeq ($(BUILD_MODE),debug)
     CXXFLAGS += $(DEBUG_FLAGS)
+    CFLAGS += $(DEBUG_FLAGS)
 else
     CXXFLAGS += $(RELEASE_FLAGS)
+    CFLAGS += $(RELEASE_FLAGS)
 endif
 
 TARGET = run
 KEYGEN_TARGET = keygen_exec
+HASHTEST_TARGET = hashtest_exec
 
 
 # Source files
 COMMON_SRCS = Maths/BigInt/BigInt.cpp \
               Maths/GMP/Miller-Rabin.cpp \
               Maths/GMP/modularArithmetics.cpp \
-              Maths/GMP/GCD.cpp
+              Maths/GMP/GCD.cpp \
+              Keccak-readable-and-compact.c
 
 MAIN_SRCS = primeTest.cpp $(COMMON_SRCS)
 KEYGEN_SRCS = key_gen/key_gen.cpp $(COMMON_SRCS)
+HASHTEST_SRCS = hashTest.cpp $(COMMON_SRCS)
 
-# Object files
-MAIN_OBJS = $(MAIN_SRCS:.cpp=.o)
-KEYGEN_OBJS = $(KEYGEN_SRCS:.cpp=.o)
-ALL_OBJS = $(sort $(MAIN_OBJS) $(KEYGEN_OBJS))
+# Object files (handle both .cpp and .c files)
+MAIN_OBJS = $(patsubst %.cpp,%.o,$(filter %.cpp,$(MAIN_SRCS))) \
+            $(patsubst %.c,%.o,$(filter %.c,$(MAIN_SRCS)))
+KEYGEN_OBJS = $(patsubst %.cpp,%.o,$(filter %.cpp,$(KEYGEN_SRCS))) \
+              $(patsubst %.c,%.o,$(filter %.c,$(KEYGEN_SRCS)))
+HASHTEST_OBJS = $(patsubst %.cpp,%.o,$(filter %.cpp,$(HASHTEST_SRCS))) \
+                $(patsubst %.c,%.o,$(filter %.c,$(HASHTEST_SRCS)))
+ALL_OBJS = $(sort $(MAIN_OBJS) $(KEYGEN_OBJS) $(HASHTEST_OBJS))
 
 # Dependency files for automatic header dependency tracking
-DEPS = $(ALL_OBJS:.o=.d)
+DEPS = $(patsubst %.o,%.d,$(ALL_OBJS))
 
 # Default target
-all: $(TARGET) $(KEYGEN_TARGET)
+all: $(TARGET) $(KEYGEN_TARGET) $(HASHTEST_TARGET)
 
 # Main executable
 $(TARGET): $(MAIN_OBJS)
@@ -46,26 +57,46 @@ $(KEYGEN_TARGET): $(KEYGEN_OBJS)
 	@echo "Linking $@..."
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
+# Hash test executable
+$(HASHTEST_TARGET): $(HASHTEST_OBJS)
+	@echo "Linking $@..."
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
 # Convenience targets
 key_gen: $(KEYGEN_TARGET)
 run_main: $(TARGET)
+hash_test: $(HASHTEST_TARGET)
 
 # Rule to compile .cpp files with automatic dependency generation
 %.o: %.cpp
-	@echo "Compiling $<..."
+	@echo "Compiling C++ $<..."
 	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+# Rule to compile .c files with automatic dependency generation
+%.o: %.c
+	@echo "Compiling C $<..."
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 # Include dependency files (ignore if they don't exist)
 -include $(DEPS)
 
 # Utility targets
 test: $(TARGET)
-	@echo "Running main program..."
+	@echo "Running prime test program..."
 	./$(TARGET)
 
 test_keygen: $(KEYGEN_TARGET)
 	@echo "Running key generator..."
 	./$(KEYGEN_TARGET)
+
+test_hash: $(HASHTEST_TARGET)
+	@echo "Running hash test program..."
+	./$(HASHTEST_TARGET)
+
+# Alias for running hash test
+hash_test: 
+	@echo "Running hash test program..."
+	./$(HASHTEST_TARGET)
 
 # Build modes
 debug:
@@ -76,19 +107,19 @@ release:
 
 # Performance profiling build
 profile: CXXFLAGS += -pg -O2
-profile: $(TARGET) $(KEYGEN_TARGET)
+profile: $(TARGET) $(KEYGEN_TARGET) $(HASHTEST_TARGET)
 
 # Static analysis
 analyze:
 	@echo "Running static analysis..."
-	cppcheck --enable=all --std=c++17 --suppress=missingIncludeSystem $(MAIN_SRCS) $(KEYGEN_SRCS)
+	cppcheck --enable=all --std=c++17 --suppress=missingIncludeSystem $(MAIN_SRCS) $(KEYGEN_SRCS) $(HASHTEST_SRCS)
 
 # Clean targets
 clean:
 	@echo "Cleaning all generated files..."
 	find . -name "*.o" -delete
 	find . -name "*.d" -delete
-	rm -f $(TARGET) $(KEYGEN_TARGET)
+	rm -f $(TARGET) $(KEYGEN_TARGET) $(HASHTEST_TARGET)
 
 # Alternative: clean only object files (keep executables)
 clean-obj:
@@ -106,12 +137,15 @@ install-deps:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all          - Build both executables (default)"
-	@echo "  $(TARGET)       - Build main executable"
+	@echo "  all          - Build all executables (default)"
+	@echo "  $(TARGET)       - Build prime test executable"
 	@echo "  $(KEYGEN_TARGET) - Build key generator"
+	@echo "  $(HASHTEST_TARGET) - Build hash test executable"
 	@echo "  key_gen      - Alias for $(KEYGEN_TARGET)"
-	@echo "  test         - Build and run main program"
+	@echo "  hash_test    - Alias for $(HASHTEST_TARGET)"
+	@echo "  test         - Build and run prime test program"
 	@echo "  test_keygen  - Build and run key generator"
+	@echo "  test_hash    - Build and run hash test program"
 	@echo "  debug        - Build with debug flags"
 	@echo "  release      - Build with release flags"
 	@echo "  profile      - Build with profiling enabled"
@@ -122,4 +156,4 @@ help:
 	@echo "  install-deps - Install required dependencies"
 	@echo "  help         - Show this help message"
 
-.PHONY: all key_gen run_main test test_keygen debug release profile analyze clean clean-obj distclean install-deps help
+.PHONY: all key_gen run_main hash_test test test_keygen test_hash debug release profile analyze clean clean-obj distclean install-deps help
