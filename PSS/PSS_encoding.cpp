@@ -1,31 +1,67 @@
-#include "../hash/hashFile.hpp"
-#include <cstring>
-#include <iostream>
-#include <vector>
+#include "PSS_encoding.hpp"
 
+std::vector<unsigned char> PSS_encode(const std::vector<unsigned char>& M, int emBits) {
 
-//EMlen = 256;
-
-int main(){
-    int EMLEN = 256; // Length of the mask in bytes (na verdade é size de n);
-    int SALT_LENGTH = 32; // Length of the salt in bytes
-    int HASH_LENGTH = 32; // Length of the hash output in bytes
-    std::string filename = "vascao.png"; // Example file to hash
-
-    std::vector<unsigned char> mHash = hash_file_sha3_256(filename);
-    std::vector<unsigned char> salt = generate_salt(SALT_LENGTH);
-    std::vector<unsigned char> EM(EMLEN, 0); // Initialize the mask with zeros
-    std::vector<unsigned char> mLInha(8, 0x00); // mLInha is initialized to 8 bytes of zeros
-    mLInha.insert(mLInha.end(), mHash.begin(), mHash.end()); // Append the hash to mLInha
-    mLInha.insert(mLInha.end(), salt.begin(), salt.end()); // Append the salt to mLInha
-    std::vector<unsigned char> H = hash_bytes_sha3_256(std::string(mLInha.begin(), mLInha.end())); // Hash mLInha
-    std::vector<unsigned char> paddingString(EMLEN - mHash.size() - salt.size() - 2, 0x00); // Padding with zeros
-    std::vector<unsigned char> DB;
-    DB.insert(DB.end(), paddingString.begin(), paddingString.end()); // Add padding
-    DB.insert(DB.end(), 0x01); // Add 0x01 byte
-    DB.insert(DB.end(), salt.begin(), salt.end()); // Add salt
-
-    std::vector<unsigned char> mask = mgf1(H, EMLEN - 1 - HASH_LENGTH, HASH_LENGTH); // Generate mask using MGF1
+    std::vector<unsigned char> mHash = hash_bytes_sha3_256(M);
+    int hLen = mHash.size(); // hLen = 32, length of the hash
     
-}
+    int sLen = hLen; // Assuming sLen is the same as hLen for simplicity
+
+    int emLen = (emBits + 7) / 8; // = ceiling (emBits)/8)
+
+    if(emLen < hLen + sLen + 2) {
+        std::cerr << "Encoding error: emLen is too small for the given hash and salt lengths." << std::endl;
+        return {};
+    }
+
+    std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
+    if (!urandom) {
+        std::cerr << "Failed to open /dev/urandom\n";
+        return {};
+    }
+    // Generate random salt
+    std::vector<unsigned char> salt(sLen);
+    urandom.read(reinterpret_cast<char*>(salt.data()), sLen);
+    if (!urandom) {
+        std::cerr << "Failed to read enough bytes for salt\n";
+        return {};
+    }
+
+    std::vector<unsigned char> emptyString(8,(unsigned char)0x00);
+    std::vector<unsigned char> M_prime;
+    M_prime.reserve(8 + hLen + sLen);
+    M_prime.insert(M_prime.end(), emptyString.begin(), emptyString.end());
+    M_prime.insert(M_prime.end(), mHash.begin(), mHash.end());
+    M_prime.insert(M_prime.end(), salt.begin(), salt.end());
+
+    std::vector<unsigned char> H = hash_bytes_sha3_256(M_prime);
+
+    size_t PSLen = emLen - hLen - sLen - 2; // Length of the padding string
+    std::vector<unsigned char> PS(PSLen, (unsigned char)0x00);
+
+    size_t DBLen = PSLen + 1 + sLen; // Length of the data block
+    //DBLen = emLen - hLen - 1;
+    std::vector<unsigned char> DB;
+    DB.reserve(DBLen);
+    DB.insert(DB.end(), PS.begin(), PS.end());
+    DB.push_back(0x01);
+    DB.insert(DB.end(), salt.begin(), salt.end());
+
+    std::vector<unsigned char> dbMask = mgf1(H, DBLen);
+    std::vector<unsigned char> maskedDB = xorVectors(DB, dbMask);
+
+    // Set the leftmost 8emLen - emBits bits of the leftmost octet in maskedDB to zero.
+    for(size_t i = 0; i<(8 * emLen - emBits); i++) {
+        maskedDB[i / 8] &= ~(1 << (7 - (i % 8))); // Clear the bit
+    }
+
+    std::vector<unsigned char> EM;
+    EM.reserve(emLen);
+    EM.insert(EM.end(), maskedDB.begin(), maskedDB.end());
+    EM.insert(EM.end(), H.begin(), H.end());
+    EM.push_back(0xBC); // Add the 0xBC byte at the end
+    
+    return EM; // Return the encoded message
+}   
+
 

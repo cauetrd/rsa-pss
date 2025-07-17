@@ -2,10 +2,9 @@
 #define MGF1_HPP
 
 #include <vector>
-#include <cstdint>
+#include "../hash/hashFile.hpp" 
 
-std::vector<uint8_t> mgf1(const std::vector<uint8_t>& seed, size_t maskLen, size_t hashLen = 32);
-
-void mgf1_raw(const uint8_t* seed, size_t seedLen, uint8_t* mask, size_t maskLen, size_t hashLen = 32);
+std::vector<unsigned char> mgf1(const std::vector<unsigned char>& seed, size_t maskLen);
 
 #endif // MGF1_HPP
+

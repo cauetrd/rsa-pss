@@ -4,8 +4,8 @@
 #include "PEM-read.hpp"
 #include <iostream>
 #include <gmpxx.h>
-#include "Maths/GMP/modularArithmetics.hpp"
+#include "../Maths/modularArithmetics.hpp"
 
-mpz_class rsa_encrypt(mpz_class message);
+mpz_class rsa_encrypt(mpz_class message, mpz_class n, mpz_class d);
 
 #endif
