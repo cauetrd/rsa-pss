@@ -5,6 +5,7 @@
 #include "hash/hashFile.hpp"
 
 
+
 int main() {
     std::string filename;
 
@@ -18,15 +19,12 @@ int main() {
         return 0;
     }
     // Sign the file content
-    std::vector<unsigned char> signature = RSAPSS_sign(file_content);
+    std::string signature = RSAPSS_sign(file_content);
 
     std::cout << "Assinatura gerada com sucesso!" << std::endl;
     std::cout << "Assinatura: ";
-    for (unsigned char byte : signature) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
-    }
     
-    std::cout << std::dec << std::endl;
+    std::cout << signature << std::endl;
 
     // Verify the signature
     std::cout << "Verificando a assinatura..." << std::endl;

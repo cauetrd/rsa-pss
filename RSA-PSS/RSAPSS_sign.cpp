@@ -1,8 +1,6 @@
 #include "RSAPSS_sign.hpp"
 
-
-
-std::vector<unsigned char> RSAPSS_sign(std::vector<unsigned char>& M){
+std::string RSAPSS_sign(std::vector<unsigned char>& M){
     std::string private_key_file = "private_key.pem";
 
     std::pair<mpz_class, mpz_class> private_key = read_pem_file(private_key_file);
@@ -31,5 +29,5 @@ std::vector<unsigned char> RSAPSS_sign(std::vector<unsigned char>& M){
     size_t s_size = (mpz_sizeinbase(s.get_mpz_t(), 2) + 7) / 8;
     mpz_export(signature.data() + (signatureLen - s_size), nullptr, 1, 1, 0, 0, s.get_mpz_t());
 
-    return signature; // Return the signature
+    return base64_encode(signature.data(), signature.size()); // Return the signature
 }   

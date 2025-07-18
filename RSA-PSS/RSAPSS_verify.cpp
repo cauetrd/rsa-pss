@@ -1,7 +1,8 @@
 #include "RSAPSS_verify.hpp"
 
 
-bool RSAPSS_verify(const std::vector<unsigned char>& M, const std::vector<unsigned char>& S){
+bool RSAPSS_verify(const std::vector<unsigned char>& M, const std::string& signatureBase64){
+    std::vector<unsigned char> S = base64_decode(signatureBase64); // Decode the Base64 signature
     std::string public_key_file = "public_key.pem";
     std::pair<mpz_class, mpz_class> public_key = read_pem_file(public_key_file);
 
@@ -25,7 +26,7 @@ bool RSAPSS_verify(const std::vector<unsigned char>& M, const std::vector<unsign
     int emLen = (emBits + 7) / 8; // = ceiling (emBits)/8
 
     EM.resize(emLen);
-    
+
     std::fill(EM.begin(), EM.end(), 0); // Zero-fill
     size_t mLen = (mpz_sizeinbase(m.get_mpz_t(), 2) + 7) / 8;
     mpz_export(EM.data() + (emLen - mLen), nullptr, 1, 1, 0, 0, m.get_mpz_t());

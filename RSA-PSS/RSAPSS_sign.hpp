@@ -7,7 +7,8 @@
 #include "../RSA/RSA-encrypt.hpp"
 #include "../PSS/PSS_encoding.hpp"
 #include "../PEM/PEM-read.hpp"
+#include "../PEM/PEM-write.hpp"
 
-std::vector<unsigned char> RSAPSS_sign(std::vector<unsigned char>& M);
+std::string RSAPSS_sign(std::vector<unsigned char>& M);
 
 #endif
