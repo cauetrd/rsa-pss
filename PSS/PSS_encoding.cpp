@@ -3,7 +3,7 @@
 std::vector<unsigned char> PSS_encode(const std::vector<unsigned char>& M, int emBits) {
 
     std::vector<unsigned char> mHash = hash_bytes_sha3_256(M);
-    int hLen = mHash.size(); // hLen = 32, length of the hash
+    int hLen = mHash.size(); // hLen = 32, length of the hash in bytes
     
     int sLen = hLen; // Assuming sLen is the same as hLen for simplicity
 
@@ -27,26 +27,32 @@ std::vector<unsigned char> PSS_encode(const std::vector<unsigned char>& M, int e
         return {};
     }
 
+    //empty 8 bytes padding string
     std::vector<unsigned char> emptyString(8,(unsigned char)0x00);
+
+    // Create the message M' = empty || Hash(M) || salt
     std::vector<unsigned char> M_prime;
     M_prime.reserve(8 + hLen + sLen);
     M_prime.insert(M_prime.end(), emptyString.begin(), emptyString.end());
     M_prime.insert(M_prime.end(), mHash.begin(), mHash.end());
     M_prime.insert(M_prime.end(), salt.begin(), salt.end());
 
+    // H = Hash(M')
     std::vector<unsigned char> H = hash_bytes_sha3_256(M_prime);
 
     size_t PSLen = emLen - hLen - sLen - 2; // Length of the padding string
     std::vector<unsigned char> PS(PSLen, (unsigned char)0x00);
 
     size_t DBLen = PSLen + 1 + sLen; // Length of the data block
-    //DBLen = emLen - hLen - 1;
+
+    // Create the data block DB = PS || 0x01 || salt
     std::vector<unsigned char> DB;
     DB.reserve(DBLen);
     DB.insert(DB.end(), PS.begin(), PS.end());
     DB.push_back(0x01);
     DB.insert(DB.end(), salt.begin(), salt.end());
 
+    // Create and apply the mask to the data block
     std::vector<unsigned char> dbMask = mgf1(H, DBLen);
     std::vector<unsigned char> maskedDB = xorVectors(DB, dbMask);
 
@@ -57,6 +63,8 @@ std::vector<unsigned char> PSS_encode(const std::vector<unsigned char>& M, int e
 
     std::vector<unsigned char> EM;
     EM.reserve(emLen);
+
+    // EM = maskedDB || H || 0xBC
     EM.insert(EM.end(), maskedDB.begin(), maskedDB.end());
     EM.insert(EM.end(), H.begin(), H.end());
     EM.push_back(0xBC); // Add the 0xBC byte at the end

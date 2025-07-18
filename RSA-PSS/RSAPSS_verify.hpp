@@ -8,6 +8,7 @@
 #include "../PEM/PEM-read.hpp"
 #include "../PSS/PSS_verification.hpp"
 
-bool RSAPSS_verify(const std::vector<unsigned char>& M, const std::string& signatureBase64);
+bool read_sign_file(const std::string& filename);
+bool RSAPSS_verify(const std::vector<unsigned char>& M, mpz_class s, mpz_class n, mpz_class e);
 
 #endif

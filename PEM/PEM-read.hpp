@@ -14,4 +14,6 @@ std::vector<unsigned char> base64_decode(const string& input);
 
 std::pair<mpz_class, mpz_class> read_pem_file(const string& filename);
 
+std::string string_base64_decode(const std::string& input);
+
 #endif

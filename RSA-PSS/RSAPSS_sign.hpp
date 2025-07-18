@@ -9,6 +9,7 @@
 #include "../PEM/PEM-read.hpp"
 #include "../PEM/PEM-write.hpp"
 
+bool generate_sign_txt(const std::string& filename, const std::string& signature);
 std::string RSAPSS_sign(std::vector<unsigned char>& M);
 
 #endif

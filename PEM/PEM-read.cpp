@@ -26,6 +26,11 @@ std::vector<unsigned char> base64_decode(const string& input) {
     return result;
 }
 
+std::string string_base64_decode(const std::string& input) {
+    std::vector<unsigned char> decoded = base64_decode(input);
+    return std::string(decoded.begin(), decoded.end());
+}
+
 // Function to read and parse PEM file
 std::pair<mpz_class, mpz_class> read_pem_file(const string& filename) {
     std::ifstream file(filename);

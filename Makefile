@@ -1,6 +1,6 @@
 CXX = g++
 CC = gcc
-CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -I. -IMaths -Ihash -IPSS -IUtils -IRSA -IRSA-PSS -IPEM -march=native -DLITTLE_ENDIAN
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -I. -IMaths -Ihash -IPSS -IUtils -IRSA -IRSA-PSS -IPEM -Ikey_gen -march=native -DLITTLE_ENDIAN
 CFLAGS = -std=c99 -Wall -Wextra -O3 -I. -IMaths -Ihash -march=native -DLITTLE_ENDIAN
 DEBUG_FLAGS = -g -DDEBUG -O0
 RELEASE_FLAGS = -DNDEBUG -O3 -march=native
@@ -17,8 +17,7 @@ else
 endif
 
 # Executables - only build what exists
-TARGET = test_exec
-KEYGEN_TARGET = keygen_exec
+TARGET = run
 
 # Source files
 MATH_SRCS = Maths/Miller-Rabin.cpp \
@@ -45,8 +44,7 @@ UTILS_SRCS = Utils/utils.cpp
 
 COMMON_SRCS = $(MATH_SRCS) $(HASH_SRCS)
 
-TEST_SRCS = test.cpp $(RSA_PSS_SRCS) $(PSS_SRCS) $(RSA_SRCS) $(HASH_SRCS) $(UTILS_SRCS) $(COMMON_SRCS) $(PEM_SRCS)
-KEYGEN_SRCS = key_gen/key_gen.cpp $(COMMON_SRCS) $(PEM_SRCS)
+TEST_SRCS = test.cpp key_gen/key_gen.cpp $(RSA_PSS_SRCS) $(PSS_SRCS) $(RSA_SRCS) $(HASH_SRCS) $(UTILS_SRCS) $(COMMON_SRCS) $(PEM_SRCS)
 
 define make_objs
 $(patsubst %.cpp,%.o,$(filter %.cpp,$1)) \
@@ -54,20 +52,15 @@ $(patsubst %.c,%.o,$(filter %.c,$1))
 endef
 
 TEST_OBJS = $(call make_objs,$(TEST_SRCS))
-KEYGEN_OBJS = $(call make_objs,$(KEYGEN_SRCS))
 
-ALL_OBJS = $(sort $(TEST_OBJS) $(KEYGEN_OBJS))
+ALL_OBJS = $(TEST_OBJS)
 DEPS = $(patsubst %.o,%.d,$(ALL_OBJS))
 
 # Default target
-all: $(TARGET) $(KEYGEN_TARGET)
+all: $(TARGET)
 
 # Linking rules
 $(TARGET): $(TEST_OBJS)
-	@echo "Linking $@..."
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
-
-$(KEYGEN_TARGET): $(KEYGEN_OBJS)
 	@echo "Linking $@..."
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
@@ -84,15 +77,8 @@ $(KEYGEN_TARGET): $(KEYGEN_OBJS)
 
 # Test Targets
 test: $(TARGET)
-	@echo "Running test program..."
+	@echo "Running main program..."
 	./$(TARGET)
-
-test_keygen: $(KEYGEN_TARGET)
-	@echo "Running key generator..."
-	./$(KEYGEN_TARGET)
-
-# Aliases
-key_gen: $(KEYGEN_TARGET)
 
 # Build mode shortcuts
 debug:
@@ -106,7 +92,7 @@ clean:
 	@echo "Cleaning all generated files..."
 	find . -name "*.o" -delete
 	find . -name "*.d" -delete
-	rm -f $(TARGET) $(KEYGEN_TARGET)
+	rm -f $(TARGET)
 
 clean-obj:
 	@echo "Cleaning object files and dependencies..."
@@ -129,4 +115,4 @@ help:
 	@echo "  clean-obj       - Remove only object and dependency files"
 	@echo "  help            - Show this help message"
 
-.PHONY: all key_gen test test_keygen debug release clean clean-obj distclean help
+.PHONY: all test debug release clean clean-obj distclean help

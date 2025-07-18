@@ -1,16 +1,8 @@
-#include <gmpxx.h>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <iostream>
-#include <chrono>
-#include "../Maths/modularArithmetics.hpp"
-#include "../Maths/Miller-Rabin.hpp"
-#include "../PEM/PEM-write.hpp"
+#include "key_gen.hpp"
 
 mpz_class randPrimeGen(std::ifstream& urandom){
     while (true){
-    const size_t num_bytes = 128; // 2048 bits
+    const size_t num_bytes = 128; // 1024 bits
     unsigned char buffer[num_bytes];
     
     urandom.read(reinterpret_cast<char*>(buffer), num_bytes);
@@ -32,12 +24,12 @@ mpz_class randPrimeGen(std::ifstream& urandom){
 }
 
 
-int main() {
+void key_gen() {
     // Open /dev/urandom once for the entire session
     std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
     if (!urandom) {
         std::cerr << "Failed to open /dev/urandom\n";
-        return 1;
+        return;
     }
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -58,5 +50,5 @@ int main() {
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Key generation took " << elapsed.count() << " seconds.\n";
 
-    return 0;
+    return;
 }
